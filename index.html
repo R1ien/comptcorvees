@@ -147,6 +147,37 @@
       background: #43cea2;
       border-radius: 10px;
     }
+
+    @media (max-width: 600px) {
+  .container {
+    width: 90%;
+    padding: 30px 20px;
+  }
+
+  input, button {
+    font-size: 0.9em;
+    padding: 10px;
+  }
+
+  #compteur {
+    font-size: 2.2em;
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 15px;
+  }
+
+  .modal input {
+    font-size: 0.9em;
+  }
+
+  .modal button {
+    font-size: 0.9em;
+    padding: 10px;
+  }
+}
+
   </style>
 </head>
 <body>
@@ -219,22 +250,52 @@
     });
 
     function creerCompte() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      firebase.auth().createUserWithEmailAndPassword(email, password)
-        .catch(error => {
-          document.getElementById("authMessage").innerText = error.message;
-        });
-    }
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  firebase.auth().createUserWithEmailAndPassword(email, password)
+    .catch(error => {
+      let message = "";
+      switch (error.code) {
+        case "auth/email-already-in-use":
+          message = "Cet email est déjà utilisé.";
+          break;
+        case "auth/invalid-email":
+          message = "Email invalide.";
+          break;
+        case "auth/weak-password":
+          message = "Mot de passe trop faible (minimum 6 caractères).";
+          break;
+        default:
+          message = "Erreur : " + error.message;
+      }
+      document.getElementById("authMessage").innerText = message;
+    });
+}
+
 
     function seConnecter() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      firebase.auth().signInWithEmailAndPassword(email, password)
-        .catch(error => {
-          document.getElementById("authMessage").innerText = error.message;
-        });
-    }
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .catch(error => {
+      let message = "";
+      switch (error.code) {
+        case "auth/user-not-found":
+          message = "Compte inexistant ou email incorrect.";
+          break;
+        case "auth/wrong-password":
+          message = "Mot de passe erroné ou compte inexistant.";
+          break;
+        case "auth/invalid-email":
+          message = "Email invalide.";
+          break;
+        default:
+          message = "Erreur : " + error.message;
+      }
+      document.getElementById("authMessage").innerText = message;
+    });
+}
+
 
     function deconnexion() {
       firebase.auth().signOut();
