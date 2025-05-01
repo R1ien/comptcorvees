@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Compte & Compteur</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #4b6cb7, #182848);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .container {
+      width: 400px;
+      padding: 50px 40px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      color: #fff;
+      text-align: center;
+      animation: fadeInScale 0.6s ease-out forwards;
+      opacity: 0;
+      transform: scale(0.95);
+      transition: all 0.3s ease;
+    }
+
+    .container.visible {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    h1, h2 {
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      color: black; /* Texte en noir ici */
+      font-size: 1em;
+      transition: background 0.3s ease;
+    }
+
+    input:focus {
+      outline: none;
+      background: rgba(255,255,255,0.3);
+    }
+
+    button {
+      padding: 12px 24px;
+      margin: 10px 5px;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #43cea2, #185a9d);
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.4s ease;
+    }
+
+    button:hover {
+      transform: scale(1.05);
+      background: linear-gradient(135deg, #185a9d, #43cea2);
+    }
+
+    #compteur {
+      font-size: 2.8em;
+      font-weight: bold;
+      margin: 30px 0;
+      display: block;
+      transition: all 0.3s ease-in-out;
+    }
+
+    #authMessage {
+      font-size: 0.9em;
+      color: #ffaaaa;
+      margin-top: 10px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @keyframes fadeInScale {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    /* Styles pour la boîte de dialogue personnalisée */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7); /* Fond semi-transparent */
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .modal-content {
+      background: rgba(255, 255, 255, 0.9); /* Couleur avec transparence */
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+      text-align: center;
+      color: #333; /* Texte sombre pour une meilleure lisibilité */
+    }
+
+    .modal input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      color: black; /* Texte en noir dans les inputs de la modale */
+    }
+
+    .modal button {
+      margin-top: 10px;
+      background: #43cea2;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container visible" id="authZone">
+    <h2>Connexion ou inscription</h2>
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Mot de passe">
+    <button onclick="seConnecter()">Connexion</button>
+    <button onclick="creerCompte()">Créer un compte</button>
+    <p id="authMessage"></p>
+  </div>
+
+  <div class="container hidden" id="compteurZone">
+    <h1>Bienvenue 👋</h1>
+    <span id="compteur">0.00</span> €
+    <button onclick="ajouterMontant()">Ajouter</button>
+    <button onclick="retirerMontant()">Retirer</button>
+    <button onclick="deconnexion()">Déconnexion</button>
+  </div>
+
+  <!-- Modale personnalisée -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <h3>Montant à ajouter ou retirer</h3>
+      <input type="number" id="montantInput" placeholder="Montant (€)">
+      <button onclick="confirmerAction()">Confirmer</button>
+      <button onclick="fermerModal()">Annuler</button>
+    </div>
+  </div>
+
+  <script>
+  const firebaseConfig = {
+  apiKey: "AIzaSyA8nHLmWmLzk8kKBg53BebprTMZzMH8_JM",
+  authDomain: "compteur-bf514.firebaseapp.com",
+  databaseURL: "https://compteur-bf514-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "compteur-bf514",
+  storageBucket: "compteur-bf514.firebasestorage.app",
+  messagingSenderId: "638375176418",
+  appId: "1:638375176418:web:189dcf6260f84614eb16bb",
+  measurementId: "G-Z7S3P5P42V"
+};
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let total = 0;
+    let uid = null;
+    let actionType = ''; // "add" ou "subtract"
+
+    const authZone = document.getElementById("authZone");
+    const compteurZone = document.getElementById("compteurZone");
+    const modal = document.getElementById("modal");
+    const montantInput = document.getElementById("montantInput");
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        uid = user.uid;
+        authZone.classList.add("hidden");
+        compteurZone.classList.remove("hidden");
+        compteurZone.classList.add("visible");
+        chargerCompteur();
+      } else {
+        uid = null;
+        compteurZone.classList.add("hidden");
+        authZone.classList.remove("hidden");
+        authZone.classList.add("visible");
+      }
+    });
+
+    function creerCompte() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      firebase.auth().createUserWithEmailAndPassword(email, password)
+        .catch(error => {
+          document.getElementById("authMessage").innerText = error.message;
+        });
+    }
+
+    function seConnecter() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      firebase.auth().signInWithEmailAndPassword(email, password)
+        .catch(error => {
+          document.getElementById("authMessage").innerText = error.message;
+        });
+    }
+
+    function deconnexion() {
+      firebase.auth().signOut();
+    }
+
+    function chargerCompteur() {
+      firebase.database().ref("comptes/" + uid + "/compteur").on("value", snapshot => {
+        total = snapshot.exists() ? snapshot.val() : 0;
+        document.getElementById("compteur").textContent = total.toFixed(2);
+      });
+    }
+
+    function mettreAJourFirebase() {
+      firebase.database().ref("comptes/" + uid + "/compteur").set(total);
+    }
+
+    function ajouterMontant() {
+      actionType = 'add';
+      montantInput.value = ''; // Reset input
+      modal.style.display = 'flex'; // Afficher la modale
+    }
+
+    function retirerMontant() {
+      actionType = 'subtract';
+      montantInput.value = ''; // Reset input
+      modal.style.display = 'flex'; // Afficher la modale
+    }
+
+    function confirmerAction() {
+      let montant = parseFloat(montantInput.value);
+      if (!isNaN(montant) && montant > 0) {
+        if (actionType === 'add') {
+          total += montant;
+          document.getElementById("compteur").textContent = total.toFixed(2);
+          document.getElementById("compteur").style.transform = "scale(1.1)";
+          setTimeout(() => document.getElementById("compteur").style.transform = "scale(1)", 200);
+        } else if (actionType === 'subtract' && montant <= total) {
+          total -= montant;
+          document.getElementById("compteur").textContent = total.toFixed(2);
+          document.getElementById("compteur").style.transform = "scale(0.9)";
+          setTimeout(() => document.getElementById("compteur").style.transform = "scale(1)", 200);
+        } else {
+          alert("Montant invalide ou insuffisant !");
+        }
+        mettreAJourFirebase();
+        fermerModal();
+      } else {
+        alert("Montant invalide !");
+      }
+    }
+
+    function fermerModal() {
+      modal.style.display = 'none';
+    }
+  </script>
+
+</body>
+</html>
